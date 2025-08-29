@@ -1,0 +1,10 @@
+[versions]
+lsp4j = "0.24.0"
+logback_version="1.5.13"
+coroutines = "1.10.2"
+
+[libraries]
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback_version"}
+org-eclipse-lsp4j = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j", version.ref = "lsp4j" }
+kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+

@@ -3,14 +3,11 @@ package io.github.sfuri.proxy.lsp.server
 import io.github.sfuri.proxy.lsp.client.DocumentSync.openDocument
 import io.github.sfuri.proxy.lsp.client.KotlinLSPClient
 import io.github.sfuri.proxy.lsp.server.model.Project
-import io.github.sfuri.proxy.lsp.server.model.ProjectFile
-import io.github.sfuri.proxy.lsp.server.model.ProjectType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import java.nio.file.Path
-import kotlin.system.exitProcess
 
 object LspProxy {
     private val WORKSPACE_URI = Path.of("projectRoot").toUri()
@@ -71,26 +68,4 @@ data class LspProject(
                 LspProject(projectDir.toString(), files)
             }
     }
-}
-
-suspend fun main() {
-    val content =
-        """
-        // import kotlinx.coroutines.*
-        /**
-         * You can edit, run, and share this code.
-         * play.kotlinlang.org
-         */
-        fun main() {
-            println("Hello, world!!!")
-            delay(2002)
-            runBl
-        }
-        """.trimIndent()
-
-    val position = Position(8, 8)
-    val project = Project(files = listOf(ProjectFile(content, "Main.kt")), confType = ProjectType.JAVA)
-
-    LspProxy.getCompletions(project, position.line, position.character).forEach(::println)
-    exitProcess(0)
 }

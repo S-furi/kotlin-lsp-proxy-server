@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonObject
 import org.eclipse.lsp4j.CompletionItem
+import org.slf4j.LoggerFactory
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class Completion(
@@ -87,7 +88,9 @@ private fun CompletionItem.parseData(): ImportData.LookupObject?  {
     return try {
         json.decodeFromJsonElement<ImportData.LookupObject>(lookupJson)
     } catch (e: SerializationException) {
-        println("Error parsing data $lookupJson: $e")
+        logger.debug("Error parsing data $lookupJson: $e")
         return null
     }
 }
+
+private val logger = LoggerFactory.getLogger(Completion::class.java)

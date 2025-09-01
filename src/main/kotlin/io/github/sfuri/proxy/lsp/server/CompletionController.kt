@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/compiler")
 class CompletionController {
 
+    @CrossOrigin(origins = ["http://localhost:9001"], allowedHeaders = ["*"], methods = [RequestMethod.POST, RequestMethod.OPTIONS])
     @PostMapping(
         "/complete",
         consumes = [MediaType.APPLICATION_JSON_VALUE],

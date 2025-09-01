@@ -1,45 +1,87 @@
 package io.github.sfuri.proxy.lsp.server
 
+import io.github.sfuri.proxy.lsp.client.DocumentSync.openDocument
 import io.github.sfuri.proxy.lsp.client.KotlinLSPClient
-import java.net.URI
+import io.github.sfuri.proxy.lsp.server.model.Project
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
+import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.Position
+import java.nio.file.Path
 
 object LspProxy {
-    val client = KotlinLSPClient()
-    val users = mutableMapOf<String, LspFile>()
+    private val WORKSPACE_URI = Path.of("projectRoot").toUri()
 
-    // TODO: generate a way to map a user to a random file, primarily a virtual file
-    // TODO: store file contents in map, to be later used in `didOpen` requests
-    // TODO: expose `/complete` endpoint that returns a list of completion options given the same input as KCS
-}
+    private val proxyCoroutineScope = CoroutineScope(Dispatchers.IO)
 
-data class LspFile(val physicalUri: URI?) {
-    private val safeTmpDir = "/foo/bar/tmp"
+    private val client: KotlinLSPClient by lazy {
+        KotlinLSPClient(WORKSPACE_URI.path, "lsp-proxy")
+    }
+
+    private val lspProjects = mutableMapOf<Project, LspProject>()
 
     /**
-     * To be used when making actual LSP requests.
+     * Retrieve completions for a given line and character position in a project. By now we assume
+     * that the project contains a single file.
      */
-    internal val logicalUri: LspURI = physicalUri?.toLspUri()?.buildTmpUri(safeTmpDir)
-        ?: LspURI.Parser.parse("file://$safeTmpDir/dummy.kt")
+    suspend fun getCompletions(project: Project, line: Int, ch: Int): List<CompletionEntry> {
+
+        val lspProject = lspProjects.getOrPut(project) {
+            LspProject.fromProject(project)
+        }
+
+        val projectFile = project.files.first()
+        val uri = lspProject.getFileUri(projectFile.name) ?: return emptyList()
+        val position = Position(line, ch)
+        client.openDocument(uri, projectFile.text)
+        delay(200)
+        return client.getCompletion(uri, position).await().toCompletionEntries()
+    }
 }
 
-internal fun URI.toLspUri(): LspURI = LspURI.Parser.parse(this.toString())
+private fun List<CompletionItem>.toCompletionEntries(): List<CompletionEntry> =
+    map { compItem ->
+        CompletionEntry(
+            text = compItem.label,
+            displayText = compItem.detail,
+            tail = "bho",
+            icon = compItem.kind?.name?.lowercase() ?: "undefined",
+        )
+    }
 
-data class LspURI(val uri: URI) {
+data class LspProject(
+    private val projectRoot: String,
+    private val files: Map<String, Path>,
+) {
 
-    fun buildTmpUri(tmpDir: String, enforceExtension: String? = null): LspURI =
-        LspURI(URI.create("file://$tmpDir/${Parser.extractFileName(this, enforceExtension) ?: "dummy.kt"}"))
+    fun getFileUri(name: String): String? =
+        files[name]?.toUri()?.toString()
 
-    object Parser {
-        const val KOTLIN_EXTENSION = ".kt"
+    fun tearDown() {
+        files.values.forEach { f -> f.toFile().delete() }
+        Path.of(projectRoot).toFile().delete()
+    }
 
-        fun parse(uri: String): LspURI {
-            return LspURI(URI.create(uri))
-        }
+    companion object {
+        private val baseDir = Path.of("usersFiles").toAbsolutePath()
 
-        fun extractFileName(lspUri: LspURI, enforceExtension: String? = null): String? {
-            return lspUri.uri.path.substringAfterLast("/").let { fileName ->
-                fileName.takeIf { it.endsWith(enforceExtension ?: "") }
+        private val projects = mutableMapOf<Project, LspProject>()
+
+        fun fromProject(project: Project): LspProject =
+            projects.getOrPut(project) {
+                val projectDirName = project.hashCode().toString()
+                val projectDir = baseDir.resolve(projectDirName)
+                projectDir.toFile().mkdirs()
+
+                val files = project.files.associate { f ->
+                    f.name to projectDir.resolve(f.name).apply {
+                        toFile().writeText(f.text)
+                    }
+                }
+
+                LspProject(projectDir.toString(), files)
             }
-        }
     }
 }

@@ -1,5 +1,6 @@
 package io.github.sfuri.proxy.lsp.client
 
+import kotlinx.coroutines.future.await
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.launch.LSPLauncher
@@ -84,13 +85,24 @@ class KotlinLSPClient {
         stopFuture = launcher.startListening()
         return launcher?.remoteProxy ?: throw RuntimeException("Cannot connect to server")
     }
+
+    companion object {
+        /**
+         * Blocking call to initialize the client and start listening for requests.
+         */
+        operator fun invoke(kotlinProjectRoot: String, projectName: String = "None"): KotlinLSPClient {
+            return KotlinLSPClient().apply {
+                initRequest(kotlinProjectRoot, projectName).get()
+            }
+        }
+    }
 }
 
 object DocumentSync {
-    fun KotlinLSPClient.openDocument(uri: URI, content: String, version: Int = 1, languageId: String = "kotlin") {
+    fun KotlinLSPClient.openDocument(uri: String, content: String, version: Int = 1, languageId: String = "kotlin") {
         languageServer.textDocumentService.didOpen(
             DidOpenTextDocumentParams(
-                TextDocumentItem(uri.toString(), languageId, version, content)
+                TextDocumentItem(uri, languageId, version, content)
             )
         )
     }

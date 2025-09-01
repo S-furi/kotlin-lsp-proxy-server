@@ -57,7 +57,7 @@ enum class Icon {
         fun tryParse(name: String?): Icon =
             try {
                 valueOf(name!!.uppercase())
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 GENERIC_VALUE
             }
     }

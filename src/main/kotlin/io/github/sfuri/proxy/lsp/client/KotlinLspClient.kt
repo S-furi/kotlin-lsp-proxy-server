@@ -104,7 +104,7 @@ object DocumentSync {
         )
     }
 
-    fun KotlinLSPClient.changeDocument(uri: URI, newContent: String, version: Int = 1) {
+    fun KotlinLSPClient.changeDocument(uri: String, newContent: String, version: Int = 1) {
         val params = DidChangeTextDocumentParams(
             VersionedTextDocumentIdentifier(uri.toString(), version),
             listOf(TextDocumentContentChangeEvent(newContent)),
@@ -112,7 +112,7 @@ object DocumentSync {
         languageServer.textDocumentService.didChange(params)
     }
 
-    fun KotlinLSPClient.closeDocument(uri: URI) {
+    fun KotlinLSPClient.closeDocument(uri: String) {
         languageServer.textDocumentService.didClose(
             DidCloseTextDocumentParams(TextDocumentIdentifier(uri.toString()))
         )

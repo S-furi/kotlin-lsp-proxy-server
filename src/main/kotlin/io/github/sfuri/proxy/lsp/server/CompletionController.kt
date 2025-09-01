@@ -21,11 +21,10 @@ class CompletionController {
         @RequestBody project: Project,
         @RequestParam(name = "line") line: Int,
         @RequestParam(name = "ch", required = true) ch: Int,
+        @CookieValue(name = "clientId", required = false) clientId: String?,
     ): List<Completion> = runBlocking {
-        LspProxy.getCompletions(
-            project = project,
-            line = line,
-            ch = ch,
-        ).mapNotNull { it.toCompletion() }
+        val user = clientId ?: LspProject.ANONYMOUS_USER
+        LspProxy.getCompletionsForUser(user, project, line, ch)
+            .mapNotNull { it.toCompletion() }
     }
 }

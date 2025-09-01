@@ -4,5 +4,5 @@ data class CompletionEntry(
     val text: String,
     val displayText: String,
     val tail: String,
-    val icon: String
+    val icon: String,
 )

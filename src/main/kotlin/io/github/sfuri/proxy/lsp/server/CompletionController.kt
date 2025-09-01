@@ -1,6 +1,8 @@
 package io.github.sfuri.proxy.lsp.server
 
+import io.github.sfuri.proxy.lsp.server.model.Completion
 import io.github.sfuri.proxy.lsp.server.model.Project
+import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import kotlinx.coroutines.runBlocking
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
@@ -18,11 +20,11 @@ class CompletionController {
         @RequestBody project: Project,
         @RequestParam(name = "line") line: Int,
         @RequestParam(name = "ch", required = true) ch: Int,
-    ): List<CompletionEntry> = runBlocking {
+    ): List<Completion> = runBlocking {
         LspProxy.getCompletions(
             project = project,
             line = line,
             ch = ch,
-        )
+        ).mapNotNull { it.toCompletion() }
     }
 }

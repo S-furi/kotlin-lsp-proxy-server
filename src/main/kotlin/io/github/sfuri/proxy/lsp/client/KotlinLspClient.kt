@@ -1,15 +1,11 @@
 package io.github.sfuri.proxy.lsp.client
 
-import kotlinx.coroutines.future.await
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageServer
 import org.slf4j.LoggerFactory
 import java.net.Socket
 import java.net.URI
-import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
@@ -18,7 +14,7 @@ class KotlinLSPClient {
     private val languageClient = KotlinLanguageClient()
     internal val languageServer: LanguageServer by lazy { getRemoteLanguageServer() }
     private lateinit var stopFuture: Future<Void>
-    private val logger = LoggerFactory.getLogger(this::class.java)
+    private val LOG = LoggerFactory.getLogger(this::class.java)
 
     fun initRequest(kotlinProjectRoot: String, projectName: String = "None"): CompletableFuture<Void> {
         val capabilities = getCompletionCapabilities()
@@ -29,9 +25,11 @@ class KotlinLSPClient {
             this.workspaceFolders = workspaceFolders
         }
 
+        LOG.info("Initializing LSP client...")
+
         return languageServer.initialize(params)
             .thenCompose { res ->
-                logger.debug(">>> Initialization response from server:\n{}", res)
+                LOG.debug(">>> Initialization response from server:\n{}", res)
                 languageServer.initialized(InitializedParams())
                 CompletableFuture.completedFuture(null)
             }
@@ -51,12 +49,11 @@ class KotlinLSPClient {
 
         return languageServer.textDocumentService.completion(params)
             .thenCompose { res ->
-                val res = when {
+                when {
                     res.isLeft -> res.left
                     res.isRight -> res.right.items
                     else -> emptyList()
-                }
-                CompletableFuture.completedFuture(res)
+                }.let { CompletableFuture.completedFuture(it) }
             }
     }
 

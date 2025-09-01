@@ -11,5 +11,5 @@ RUN curl -L "https://download-cdn.jetbrains.com/kotlin-lsp/${KOTLIN_LSP_VERSION}
 
 RUN chmod +x kotlin-lsp.sh
 EXPOSE 9999
-CMD ["sh", "-c", "./kotlin-lsp.sh", "--multi-client", "--scoped"]
+CMD ["sh", "-c", "./kotlin-lsp.sh", "--multi-client"]
 

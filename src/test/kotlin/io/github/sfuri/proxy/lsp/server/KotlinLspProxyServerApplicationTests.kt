@@ -6,7 +6,7 @@ import io.github.sfuri.proxy.lsp.server.model.ProjectType
 import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 class KotlinLspProxyServerApplicationTests {
 
     @Test
-    fun testCompletions() = runBlocking {
+    fun testCompletions() = runTest {
         val content =
             """
             fun main() {
@@ -39,7 +39,7 @@ class KotlinLspProxyServerApplicationTests {
     }
 
     @Test
-    fun `variable completion test`() = runBlocking {
+    fun `variable completion test`() = runTest {
         val content =
             """
             fun main() {
@@ -60,7 +60,7 @@ class KotlinLspProxyServerApplicationTests {
     }
 
     @Test
-    fun `test project isolation`() = runBlocking {
+    fun `test project isolation`() = runTest {
         val content1 =
             """
             fun main() {

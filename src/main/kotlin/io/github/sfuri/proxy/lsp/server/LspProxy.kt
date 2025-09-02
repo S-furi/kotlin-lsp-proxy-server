@@ -1,10 +1,10 @@
 package io.github.sfuri.proxy.lsp.server
 
 import io.github.sfuri.proxy.lsp.client.DocumentSync.changeDocument
+import io.github.sfuri.proxy.lsp.client.DocumentSync.closeDocument
 import io.github.sfuri.proxy.lsp.client.DocumentSync.openDocument
 import io.github.sfuri.proxy.lsp.client.KotlinLSPClient
 import io.github.sfuri.proxy.lsp.server.model.Project
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
@@ -49,8 +49,21 @@ object LspProxy {
         val projectFile = project.files.first()
         val uri = lspProject.getFileUri(projectFile.name) ?: return emptyList()
         val position = Position(line, ch)
-        if (needsOpen) client.openDocument(uri, projectFile.text); delay(1000)
+        if (needsOpen) client.openDocument(uri, projectFile.text)
         return client.getCompletion(uri, position).await()
+    }
+
+    fun closeProject(userId: String) {
+        val project = usersProjects[userId] ?: return
+        val lspProject= lspProjects[project] ?: return
+        lspProject.getFilesUris().forEach { uri -> client.closeDocument(uri) }
+        lspProject.tearDown()
+        lspProjects.remove(project)
+        usersProjects.remove(userId)
+    }
+
+    fun closeAllProjects() {
+        usersProjects.keys.forEach { closeProject(it) }
     }
 }
 
@@ -67,8 +80,13 @@ data class LspProject(
     fun getFileUri(name: String): String? =
         files[name]?.toUri()?.toString()
 
+    fun getFilesUris(): List<String> =
+        files.values.map { it.toUri().toString() }
+
     fun tearDown() {
-        files.values.forEach { f -> f.toFile().delete() }
+        files.values.forEach { f ->
+            f.toFile().delete()
+        }
         Path.of(projectRoot).toFile().delete()
     }
 

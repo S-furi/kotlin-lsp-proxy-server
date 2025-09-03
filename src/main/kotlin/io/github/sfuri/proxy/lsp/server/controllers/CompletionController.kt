@@ -1,11 +1,20 @@
-package io.github.sfuri.proxy.lsp.server
+package io.github.sfuri.proxy.lsp.server.controllers
 
+import io.github.sfuri.proxy.lsp.server.LspProject
+import io.github.sfuri.proxy.lsp.server.LspProxy
 import io.github.sfuri.proxy.lsp.server.model.Completion
 import io.github.sfuri.proxy.lsp.server.model.Project
 import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import kotlinx.coroutines.runBlocking
 import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.CookieValue
+import org.springframework.web.bind.annotation.CrossOrigin
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestMethod
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/compiler")

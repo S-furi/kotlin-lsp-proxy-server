@@ -142,7 +142,7 @@ fun CompletionItem.toCompletion(): Completion? {
                 icon = Icon.tryParse(kind?.name?.lowercase()),
             )
         }.getOrElse { e ->
-            logger.error("Error parsing lookupObject $lookupJson: ${e.message}")
+            logger.debug("Cannot parse {}: {}", lookupJson, e.message)
             null
         }
 }

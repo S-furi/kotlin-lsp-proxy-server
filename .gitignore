@@ -42,3 +42,5 @@ out/
 projectRoot/gradlew
 projectRoot/gradlew.bat
 projectRoot/gradle/wrapper/gradle-wrapper.jar
+
+logs/

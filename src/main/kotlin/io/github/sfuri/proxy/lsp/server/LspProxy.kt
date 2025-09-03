@@ -18,9 +18,9 @@ object LspProxy {
 
     private lateinit var client: KotlinLSPClient
 
-    private val usersProjects = ConcurrentHashMap<String, Project>()
     private val lspProjects = ConcurrentHashMap<Project, LspProject>()
 
+    private val usersProjects = ConcurrentHashMap<String, Project>()
 
     fun initializeClient(workspacePath: String = WORKSPACE_URI.path, clientName: String = "lsp-proxy") {
         if (!::client.isInitialized) {
@@ -107,6 +107,8 @@ object LspProxy {
 
     fun closeAllProjects() {
         usersProjects.keys.forEach { closeProject(it) }
+        usersProjects.clear()
+        lspProjects.clear()
     }
 }
 

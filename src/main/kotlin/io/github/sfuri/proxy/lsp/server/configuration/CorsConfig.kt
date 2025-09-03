@@ -10,7 +10,6 @@ class CorsConfig : WebMvcConfigurer{
         registry.addMapping("/api/**")
             .allowedOrigins("http://localhost:9001")
             .allowedMethods("POST", "OPTIONS")
-            .allowedHeaders("*")
             .allowCredentials(true)
     }
 }

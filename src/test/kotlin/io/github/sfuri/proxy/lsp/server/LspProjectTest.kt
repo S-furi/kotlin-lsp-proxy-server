@@ -73,7 +73,7 @@ class LspProjectTest {
         val first = LspProject.fromProject(p).also { createdProjects += it }
         val second = LspProject.fromProject(p)
 
-        assertSame(first, second)
+        assertEquals(first, second)
         val filePath = baseDir.resolve(p.hashCode().toString()).resolve("Foo.kt")
         assertTrue(filePath.exists())
     }

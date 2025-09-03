@@ -20,37 +20,11 @@ object LspProxy {
 
     private val lspProjects = ConcurrentHashMap<Project, LspProject>()
 
-    private val usersProjects = ConcurrentHashMap<String, Project>()
-
     fun initializeClient(workspacePath: String = WORKSPACE_URI.path, clientName: String = "lsp-proxy") {
         if (!::client.isInitialized) {
             client = KotlinLSPClient(workspacePath, clientName)
             logger.info("LSP client initialized with workspace=$workspacePath, name=$clientName")
         }
-    }
-
-    fun onUserConnected(userId: String) {
-        val project = Project(files = listOf(ProjectFile(name = "$userId.kt")))
-        val lspProject = LspProject.fromProject(project)
-        lspProjects[project] = lspProject
-        usersProjects[userId] = project
-
-        lspProject.getFilesUris().forEach {
-            uri -> client.openDocument(uri, project.files.first().text)
-        }
-    }
-
-    fun onUserDisconnected(userId: String) {
-        closeProject(userId)
-    }
-
-    suspend fun getCompletionsForUser(userId: String, newProject: Project, line: Int, ch: Int): List<CompletionItem> {
-        val project = usersProjects[userId] ?: return emptyList()
-        val lspProject = lspProjects[project] ?: return emptyList()
-        val newContent = newProject.files.first().text
-        val documentToChange = newProject.files.first().name
-        changeContent(lspProject, documentToChange, newContent)
-        return getCompletions(project, line, ch)
     }
 
     /**
@@ -63,31 +37,28 @@ object LspProxy {
      * sense being kotlin playground files quite small in content).
      */
     suspend fun getCompletions(project: Project, line: Int, ch: Int): List<CompletionItem> {
-        val lspProject = lspProjects[project] ?: return emptyList()
+        val lspProject = lspProjects[project] ?: createNewProject(project)
         val projectFile = project.files.first()
         val uri = lspProject.getFileUri(projectFile.name) ?: return emptyList()
+        client.openDocument(uri, projectFile.text)
         val position = Position(line, ch)
-        return client.getCompletion(uri, position).await()
+        return client.getCompletion(uri, position).await().also { client.closeDocument(uri) }
     }
 
-    // TODO: investigate potential race conditions
-    fun changeContent(lspProject: LspProject, name: String, newContent: String) {
-        lspProject.changeFileContents(name, newContent)
-        client.changeDocument(lspProject.getFileUri(name)!!, newContent)
+    private fun createNewProject(project: Project): LspProject {
+        val lspProject = LspProject.fromProject(project)
+        lspProjects[project] = lspProject
+        return lspProject
     }
 
-    fun closeProject(userId: String) {
-        val project = usersProjects[userId] ?: return
+    fun closeProject(project: Project) {
         val lspProject = lspProjects[project] ?: return
         lspProject.getFilesUris().forEach { uri -> client.closeDocument(uri) }
         lspProject.tearDown()
         lspProjects.remove(project)
-        usersProjects.remove(userId)
     }
 
     fun closeAllProjects() {
-        usersProjects.keys.forEach { closeProject(it) }
-        usersProjects.clear()
         lspProjects.clear()
     }
 }
@@ -97,10 +68,6 @@ data class LspProject(
     private val files: Map<String, Path>,
     private val owner: String? = null
 ) {
-
-    fun changeFileContents(name: String, newContent: String) {
-        files[name]?.toFile()?.writeText(newContent)
-    }
 
     fun getFileUri(name: String): String? =
         files[name]?.toUri()?.toString()
@@ -116,8 +83,6 @@ data class LspProject(
     }
 
     companion object {
-        const val ANONYMOUS_USER = "anonymous"
-
         private val baseDir = Path.of("usersFiles").toAbsolutePath()
 
         fun fromProject(project: Project): LspProject =

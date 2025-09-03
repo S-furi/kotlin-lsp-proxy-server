@@ -1,0 +1,16 @@
+spring:
+  rsocket:
+    server:
+      transport: websocket
+      mapping-path: /rsocket
+  application:
+    name: kotlin-lsp-proxy-server
+
+server:
+  port: 8089
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

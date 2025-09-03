@@ -5,7 +5,6 @@ import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageServer
 import org.slf4j.LoggerFactory
 import java.net.Socket
-import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 
@@ -105,8 +104,9 @@ object DocumentSync {
     }
 
     fun KotlinLSPClient.changeDocument(uri: String, newContent: String, version: Int = 1) {
+        if (uri.isEmpty()) return
         val params = DidChangeTextDocumentParams(
-            VersionedTextDocumentIdentifier(uri.toString(), version),
+            VersionedTextDocumentIdentifier(uri, version),
             listOf(TextDocumentContentChangeEvent(newContent)),
         )
         languageServer.textDocumentService.didChange(params)
@@ -114,7 +114,7 @@ object DocumentSync {
 
     fun KotlinLSPClient.closeDocument(uri: String) {
         languageServer.textDocumentService.didClose(
-            DidCloseTextDocumentParams(TextDocumentIdentifier(uri.toString()))
+            DidCloseTextDocumentParams(TextDocumentIdentifier(uri))
         )
     }
 }

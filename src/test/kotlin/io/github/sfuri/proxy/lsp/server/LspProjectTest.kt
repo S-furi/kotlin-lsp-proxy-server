@@ -110,4 +110,9 @@ class LspProjectTest {
         assertTrue(!filePath.exists())
         assertTrue(!projectDir.exists())
     }
+
+    @Test
+    fun `LspProject should correctly handle a workspace compliant for lsp`() {
+
+    }
 }

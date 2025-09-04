@@ -74,7 +74,7 @@ object LspProxy {
         val project = usersProjects[userId] ?: return emptyList()
         val lspProject = lspProjects[project] ?: return emptyList()
         val newContent = newProject.files.first().text
-        val documentToChange = newProject.files.first().name
+        val documentToChange = project.files.first().name
         changeContent(lspProject, documentToChange, newContent)
         return getCompletions(project, line, ch)
     }

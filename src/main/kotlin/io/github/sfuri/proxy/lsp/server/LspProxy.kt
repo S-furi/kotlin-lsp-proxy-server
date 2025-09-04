@@ -15,14 +15,24 @@ import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 object LspProxy {
+
     private val WORKSPACE_URI = Path.of("projectRoot").toUri()
 
     private lateinit var client: KotlinLSPClient
-
     private val lspProjects = ConcurrentHashMap<Project, LspProject>()
-
     private val usersProjects = ConcurrentHashMap<String, Project>()
 
+    /**
+     * Initialize the LSP client.
+     *
+     * [workspacePath] is the path ([[java.net.URI.path]]) to the root project directory,
+     * where the project must be a project supported by [Kotlin-LSP](https://github.com/Kotlin/kotlin-lsp).
+     * The workspace will not contain users files, but it can be used to store common files,
+     * to specify kotlin/java versions, project-wide imported libraries, ...
+     *
+     * @param workspacePath the path to the workspace directory, namely the root of the common project
+     * @param clientName the name of the client, defaults to "lsp-proxy"
+     */
     fun initializeClient(workspacePath: String = WORKSPACE_URI.path, clientName: String = "lsp-proxy") {
         if (!::client.isInitialized) {
             client = KotlinLSPClient(workspacePath, clientName)
@@ -30,21 +40,16 @@ object LspProxy {
         }
     }
 
-    fun onUserConnected(userId: String) {
-        val project = Project(files = listOf(ProjectFile(name = "$userId.kt")))
-        val lspProject = LspProject.fromProject(project)
-        lspProjects[project] = lspProject
-        usersProjects[userId] = project
-
-        lspProject.getFilesUris().forEach {
-            uri -> client.openDocument(uri, project.files.first().text)
-        }
-    }
-
-    fun onUserDisconnected(userId: String) {
-        closeProject(userId)
-    }
-
+    /**
+     * Retrieve completions for a given line and character position in a project file.
+     * This modality is used for **stateless** scenarios, where the document will be
+     * opened, completion triggered and then closed.
+     *
+     * @param project the project containing the file
+     * @param line the line number
+     * @param ch the character position
+     * @return a list of [CompletionItem]s
+     */
     suspend fun getCompletionsSingleRoundTrip(project: Project, line: Int, ch: Int): List<CompletionItem> {
         val lspProject = lspProjects[project] ?: createNewProject(project)
         val projectFile = project.files.first()
@@ -53,6 +58,18 @@ object LspProxy {
         return getCompletions(project, line, ch, closeAfter = true)
     }
 
+    /**
+     * Retrieve completions for a given line and character position in a project file.
+     * This modality is used for **stateful** scenarios, where the document will be
+     * changed and then completion triggered, while it's being stored in memory
+     * for the whole user session's duration.
+     *
+     * @param userId the user identifier (or session identifier)
+     * @param newProject the project containing the file
+     * @param line the line number
+     * @param ch the character position
+     * @return a list of [CompletionItem]s
+     */
     suspend fun getCompletionsForUser(userId: String, newProject: Project, line: Int, ch: Int): List<CompletionItem> {
         val project = usersProjects[userId] ?: return emptyList()
         val lspProject = lspProjects[project] ?: return emptyList()
@@ -70,6 +87,13 @@ object LspProxy {
      *
      * Changes are not incremental, whole file content is transmitted (which can make
      * sense being kotlin playground files quite small in content).
+     *
+     * @param project the project containing the file
+     * @param line the line number
+     * @param ch the character position
+     * @param fileName the name of the file to be used for completion
+     * @param closeAfter whether to close the document after completion is triggered
+     * @return a list of [CompletionItem]s
      */
     suspend fun getCompletions(
         project: Project,
@@ -84,16 +108,19 @@ object LspProxy {
             .also { if (closeAfter) client.closeDocument(uri) }
     }
 
-    private fun createNewProject(project: Project): LspProject {
+    fun onUserConnected(userId: String) {
+        val project = Project(files = listOf(ProjectFile(name = "$userId.kt")))
         val lspProject = LspProject.fromProject(project)
         lspProjects[project] = lspProject
-        return lspProject
+        usersProjects[userId] = project
+
+        lspProject.getFilesUris().forEach {
+                uri -> client.openDocument(uri, project.files.first().text)
+        }
     }
 
-    // TODO: investigate potential race conditions
-    private fun changeContent(lspProject: LspProject, name: String, newContent: String) {
-        lspProject.changeFileContents(name, newContent)
-        client.changeDocument(lspProject.getFileUri(name)!!, newContent)
+    fun onUserDisconnected(userId: String) {
+        closeProject(userId)
     }
 
     fun closeProject(project: Project) {
@@ -116,5 +143,16 @@ object LspProxy {
         lspProjects.clear()
     }
 
+    private fun createNewProject(project: Project): LspProject {
+        val lspProject = LspProject.fromProject(project)
+        lspProjects[project] = lspProject
+        return lspProject
+    }
+
+    // TODO: investigate potential race conditions
+    private fun changeContent(lspProject: LspProject, name: String, newContent: String) {
+        lspProject.changeFileContents(name, newContent)
+        client.changeDocument(lspProject.getFileUri(name)!!, newContent)
+    }
     private val logger = LoggerFactory.getLogger(LspProxy::class.java)
 }

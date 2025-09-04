@@ -74,7 +74,6 @@ class CompletionWebSocketHandler : TextWebSocketHandler(), CoroutineScope {
     private suspend fun handleCompletionRequest(session: WebSocketSession, request: CompletionRequest) {
         LspProxy.getCompletionsForUser(session.id, request.project, request.line, request.ch)
             .mapNotNull { it.toCompletion() }
-            .also { logger.info("Received ${it.size} completions") }
             .let { session.sendMessage(Response.completionResult(it)) }
     }
 

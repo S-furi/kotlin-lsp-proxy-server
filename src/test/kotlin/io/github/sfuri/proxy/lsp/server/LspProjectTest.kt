@@ -1,5 +1,6 @@
 package io.github.sfuri.proxy.lsp.server
 
+import io.github.sfuri.proxy.lsp.server.model.LspProject
 import io.github.sfuri.proxy.lsp.server.model.Project
 import io.github.sfuri.proxy.lsp.server.model.ProjectFile
 import io.github.sfuri.proxy.lsp.server.model.ProjectType
@@ -13,7 +14,6 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 
 class LspProjectTest {
     private val createdProjects = mutableListOf<LspProject>()
@@ -109,10 +109,5 @@ class LspProjectTest {
 
         assertTrue(!filePath.exists())
         assertTrue(!projectDir.exists())
-    }
-
-    @Test
-    fun `LspProject should correctly handle a workspace compliant for lsp`() {
-
     }
 }

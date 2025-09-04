@@ -1,9 +1,9 @@
 package io.github.sfuri.proxy.lsp.server
 
+import io.github.sfuri.proxy.lsp.server.model.CompletionParser.toCompletion
 import io.github.sfuri.proxy.lsp.server.model.Project
 import io.github.sfuri.proxy.lsp.server.model.ProjectFile
 import io.github.sfuri.proxy.lsp.server.model.ProjectType
-import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
@@ -79,8 +79,8 @@ class KotlinLspProxyServerApplicationTests {
         val project1 = Project(files = listOf(ProjectFile(content1, "source1.kt")), confType = ProjectType.JAVA)
         val project2 = Project(files = listOf(ProjectFile(content2, "source2.kt")), confType = ProjectType.JAVA)
 
-        val compl1 = async { LspProxy.getCompletions(project1, 1, 11).map { it.toCompletion()?.text } }
-        val compl2 = async { LspProxy.getCompletions(project2, 1, 11).map { it.toCompletion()?.text } }
+        val compl1 = async { LspProxy.getCompletionsSingleRoundTrip(project1, 1, 11).map { it.toCompletion()?.text } }
+        val compl2 = async { LspProxy.getCompletionsSingleRoundTrip(project2, 1, 11).map { it.toCompletion()?.text } }
 
         listOf(compl1, compl2).awaitAll().let { (c1, c2) ->
             assertTrue(c2.contains("toInterval"))

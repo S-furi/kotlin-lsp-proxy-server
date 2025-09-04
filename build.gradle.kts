@@ -31,6 +31,7 @@ dependencies {
     implementation(libs.org.eclipse.lsp4j)
     implementation(libs.org.springdoc)
     implementation(libs.logback)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.bundles.coroutines)
 }
 

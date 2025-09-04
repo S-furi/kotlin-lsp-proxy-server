@@ -2,8 +2,8 @@ package io.github.sfuri.proxy.lsp.server.controllers
 
 import io.github.sfuri.proxy.lsp.server.LspProxy
 import io.github.sfuri.proxy.lsp.server.model.Completion
+import io.github.sfuri.proxy.lsp.server.model.CompletionParser.toCompletion
 import io.github.sfuri.proxy.lsp.server.model.Project
-import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

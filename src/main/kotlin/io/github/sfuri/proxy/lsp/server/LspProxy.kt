@@ -4,6 +4,7 @@ import io.github.sfuri.proxy.lsp.client.DocumentSync.changeDocument
 import io.github.sfuri.proxy.lsp.client.DocumentSync.closeDocument
 import io.github.sfuri.proxy.lsp.client.DocumentSync.openDocument
 import io.github.sfuri.proxy.lsp.client.KotlinLSPClient
+import io.github.sfuri.proxy.lsp.server.model.LspProject
 import io.github.sfuri.proxy.lsp.server.model.Project
 import io.github.sfuri.proxy.lsp.server.model.ProjectFile
 import kotlinx.coroutines.future.await
@@ -86,7 +87,7 @@ object LspProxy {
     }
 
     // TODO: investigate potential race conditions
-    fun changeContent(lspProject: LspProject, name: String, newContent: String) {
+    private fun changeContent(lspProject: LspProject, name: String, newContent: String) {
         lspProject.changeFileContents(name, newContent)
         client.changeDocument(lspProject.getFileUri(name)!!, newContent)
     }
@@ -110,52 +111,6 @@ object LspProxy {
         usersProjects.clear()
         lspProjects.clear()
     }
+
+    private val logger = LoggerFactory.getLogger(LspProxy::class.java)
 }
-
-data class LspProject(
-    private val projectRoot: String,
-    private val files: Map<String, Path>,
-    private val owner: String? = null
-) {
-
-    fun changeFileContents(name: String, newContent: String) {
-        files[name]?.toFile()?.writeText(newContent)
-    }
-
-    fun getFileUri(name: String): String? =
-        files[name]?.toUri()?.toString()
-
-    fun getFilesUris(): List<String> =
-        files.values.map { it.toUri().toString() }
-
-    fun tearDown() {
-        files.values.forEach { f ->
-            f.toFile().delete()
-        }
-        Path.of(projectRoot).toFile().delete()
-    }
-
-    companion object {
-        private val baseDir = Path.of("usersFiles").toAbsolutePath()
-
-        fun fromProject(project: Project): LspProject =
-            createLspProjectWithName(project.hashCode().toString(), project).also {
-                logger.info("LspProject created for project ${project.hashCode()}")
-            }
-
-        private fun createLspProjectWithName(name: String, project: Project): LspProject {
-            val projectDir = baseDir.resolve(name)
-            projectDir.toFile().mkdirs()
-
-            val files = project.files.associate { f ->
-                f.name to projectDir.resolve(f.name).apply {
-                    toFile().writeText(f.text)
-                }
-            }
-
-            return LspProject(projectDir.toString(), files)
-        }
-    }
-}
-
-private val logger = LoggerFactory.getLogger(LspProject::class.java)

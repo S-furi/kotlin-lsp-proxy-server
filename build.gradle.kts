@@ -22,6 +22,7 @@ repositories {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -30,9 +31,7 @@ dependencies {
     implementation(libs.org.eclipse.lsp4j)
     implementation(libs.org.springdoc)
     implementation(libs.logback)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.test)
-    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.bundles.coroutines)
 }
 
 kotlin {

@@ -2,13 +2,10 @@ package io.github.sfuri.proxy.lsp.server.model
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonContentPolymorphicSerializer
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.sfuri.proxy.lsp.server.model.Icon.*
 import org.eclipse.lsp4j.CompletionItem
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -45,116 +42,132 @@ enum class Icon {
     }
 }
 
-@Serializable
 data class ImportingStrategy(
     val kind: String,
     val fqName: String? = null,
     val nameToImport: String? = null
 )
 
-@Serializable
 data class Options(val importingStrategy: ImportingStrategy)
 
-@Serializable
-sealed interface AdditionalCompletionData {
-
-    @Serializable
-    data class ShortImport( // TODO: better name?
-        val kind: String,
-        val shortName: String,
-        val importingStrategy: ImportingStrategy
-    ) : AdditionalCompletionData {
-        fun toLookupObject(): LookupObject =
-            LookupObject(
-                renderedDeclaration = shortName,
-                options = Options(importingStrategy),
-            )
-    }
-
-    @Serializable
-    data class LookupObject(
-        val options: Options,
-        val renderedDeclaration: String,
-    ) : AdditionalCompletionData
-
-    @Serializable
-    data class KeywordConstructLookupObject(
-        val kind: String,
-        val keyword: String,
-        val constructToInsert: String,
-    ) : AdditionalCompletionData {
-        fun toCompletion(): Completion =
-            Completion(
-                text = keyword,
-                displayText = keyword,
-                tail = constructToInsert,
-            )
-    }
-
-    companion object Serializer :
-        JsonContentPolymorphicSerializer<AdditionalCompletionData>(AdditionalCompletionData::class) {
-        override fun selectDeserializer(element: JsonElement): DeserializationStrategy<AdditionalCompletionData> {
-            val jsonObject = element.jsonObject
-            return with(jsonObject) {
-                when {
-                    containsKey("keyword") && containsKey("constructorToInsert") -> KeywordConstructLookupObject.serializer()
-                    containsKey("shortName") && containsKey("importingStrategy") -> ShortImport.serializer()
-                    containsKey("options") && containsKey("renderedDeclaration") -> LookupObject.serializer()
-                    else -> throw SerializationException("Unknown AdditionalCompletionData type: $element")
-                }
-            }
-        }
-    }
-}
-
-val json = Json { ignoreUnknownKeys = true }
+private val mapper = jacksonObjectMapper()
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
 fun CompletionItem.toCompletion(): Completion? {
-    val root = json.parseToJsonElement(data.toString()).jsonObject
+    val root: JsonNode = try {
+        mapper.readTree(data.toString())
+    } catch (e: Exception) {
+        logger.info("Cannot parse completion data root: {}", e.message)
+        return null
+    }
 
-    val lookupJson = root["additionalData"]
-        ?.jsonObject?.get("model")
-        ?.jsonObject?.get("delegate")
-        ?.jsonObject?.get("delegate")
-        ?.jsonObject?.get("lookupObject")
-        ?.jsonObject?.get("lookupObject") ?: return null
+    val lookupJson =
+        root.path("additionalData")
+            .path("model")
+            .path("delegate")
+            .path("delegate")
+            .path("lookupObject")
+            .path("lookupObject")
 
-    return tryParseCompletionData(lookupJson)
-        .map { completionData ->
-            val elem: AdditionalCompletionData.LookupObject = when (completionData) {
-                is AdditionalCompletionData.LookupObject -> completionData
-                is AdditionalCompletionData.ShortImport -> completionData.toLookupObject()
-                is AdditionalCompletionData.KeywordConstructLookupObject -> return@map completionData.toCompletion()
-            }
+    if (lookupJson.isMissingNode || lookupJson.isNull) return null
 
-            val importName = with(elem.options.importingStrategy) {
-                if (needsImport(this)) fqName else null
-            }
+    val keyword = lookupJson.get("keyword")?.asText()
+    val constructToInsert = lookupJson.get("constructToInsert")?.asText()
+    val kind = lookupJson.get("kind")?.asText() // may hold FQNs like "...KeywordLookupObject"
+    if (!keyword.isNullOrBlank() && !constructToInsert.isNullOrBlank()) {
+        return Completion(
+            text = keyword,
+            displayText = keyword,
+            tail = constructToInsert,
+        )
+    }
 
-            val displayText = "$label${elem.renderedDeclaration}" +
-                    if (importName != null) "  ($importName)" else ""
+    if (!keyword.isNullOrBlank()) {
+        return Completion(
+            text = keyword,
+            displayText = keyword,
+            icon = GENERIC_VALUE
+        )
+    }
 
-            Completion(
-                text = label,
-                displayText = displayText,
-                tail = labelDetails?.description,
-                import = importName,
-                icon = Icon.tryParse(kind?.name?.lowercase()),
-            )
-        }.getOrElse { e ->
-            logger.debug("Cannot parse {}: {}", lookupJson, e.message)
-            null
-        }
+    val shortName = lookupJson.get("shortName")?.asText()
+    if (!shortName.isNullOrBlank() && kind?.endsWith("NamedArgumentLookupObject") == true) {
+        return Completion(
+            text = shortName,
+            displayText = shortName,
+            icon = GENERIC_VALUE
+        )
+    }
+
+    if (!shortName.isNullOrBlank() && kind?.endsWith("PackagePartLookupObject") == true) {
+        return Completion(
+            text = shortName,
+            displayText = shortName,
+            icon = PACKAGE
+        )
+    }
+
+    val data = extractLookupCore(lookupJson) ?: return null
+    val renderedDeclaration = data["renderedDeclaration"]!! as String
+    val options = data["options"]!! as Options
+    val hasReceiver = data["hasReceiver"] as Boolean?
+
+    val importName = with(options.importingStrategy) {
+        if (needsImport(this)) fqName else null
+    }
+
+    val name = extractNameForKind(label, renderedDeclaration, hasReceiver)
+
+    val displayText = name + if (importName != null) "  ($importName)" else ""
+
+    return Completion(
+        text = label,
+        displayText = displayText,
+        tail = labelDetails?.description,
+        import = importName,
+        icon = Icon.tryParse(kind?.substringAfterLast('.')?.lowercase())
+    )
 }
 
-private fun tryParseCompletionData(data: JsonElement): Result<AdditionalCompletionData> {
-    return try {
-        val res = json.decodeFromJsonElement(AdditionalCompletionData.Serializer,data)
-        Result.success(res)
-    } catch (e: SerializationException) {
-        Result.failure(e)
+private fun extractLookupCore(node: JsonNode): Map<String, Any?>? {
+    val optionsNode = node.get("options")
+    val importingStrategyNodeDirect = node.get("importingStrategy")
+    val hasReceiver = runCatching {
+        node.get("hasReceiver").asBoolean()
+    }.getOrNull()
+
+    val options: Options? = when {
+        optionsNode != null && !optionsNode.isNull -> runCatching {
+            mapper.treeToValue(optionsNode, Options::class.java)
+        }.getOrNull()
+
+        importingStrategyNodeDirect != null && !importingStrategyNodeDirect.isNull -> runCatching {
+            Options(mapper.treeToValue(importingStrategyNodeDirect, ImportingStrategy::class.java))
+        }.getOrNull()
+
+        else -> null
+    }
+
+    val renderedDeclaration = node.get("renderedDeclaration")?.asText()
+        ?: node.get("shortName")?.asText()
+
+    return if (!renderedDeclaration.isNullOrBlank() && options != null) {
+        mapOf(
+            "renderedDeclaration" to renderedDeclaration,
+            "options" to options,
+            "hasReceiver" to hasReceiver,
+        )
+    } else {
+        null
     }
 }
+
+fun extractNameForKind(label: String, renderedDeclaration: String, hasReceiver: Boolean?): String =
+    if (hasReceiver == null) {
+        renderedDeclaration + label
+    } else  {
+        if (label != renderedDeclaration) "$label$renderedDeclaration" else label
+    }
 
 private fun needsImport(importingStrategy: ImportingStrategy): Boolean =
     importingStrategy.fqName == null || !importingStrategy.kind.contains("DoNothing")

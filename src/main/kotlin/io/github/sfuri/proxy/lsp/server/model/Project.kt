@@ -14,7 +14,7 @@ data class Project(
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-data class ProjectFile(val text: String = "", val name: String = "")
+data class ProjectFile(val text: String = "", val name: String = "", val publicId: String? = null)
 
 @Suppress("unused")
 enum class ProjectType(@JsonValue val id: String) {

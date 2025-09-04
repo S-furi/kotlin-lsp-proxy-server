@@ -1,5 +1,6 @@
-package io.github.sfuri.proxy.lsp.server.components.ws
+package io.github.sfuri.proxy.lsp.server.configuration
 
+import io.github.sfuri.proxy.lsp.server.controllers.CompletionWebSocketHandler
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.socket.config.annotation.EnableWebSocket

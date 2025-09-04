@@ -37,6 +37,6 @@ class CompletionController {
         @RequestParam(name = "line") line: Int,
         @RequestParam(name = "ch", required = true) ch: Int,
     ): List<Completion> = withContext(completionContext) {
-        LspProxy.getCompletions(project, line, ch).mapNotNull { it.toCompletion() }
+        LspProxy.getCompletionsSingleRoundTrip(project, line, ch).mapNotNull { it.toCompletion() }
     }
 }

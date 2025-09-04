@@ -1,12 +1,12 @@
-package io.github.sfuri.proxy.lsp.server.components.ws
+package io.github.sfuri.proxy.lsp.server.controllers
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.github.sfuri.proxy.lsp.server.LspProxy
 import io.github.sfuri.proxy.lsp.server.model.Completion
+import io.github.sfuri.proxy.lsp.server.model.CompletionParser.toCompletion
 import io.github.sfuri.proxy.lsp.server.model.Project
-import io.github.sfuri.proxy.lsp.server.model.toCompletion
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope

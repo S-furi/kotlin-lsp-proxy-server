@@ -45,26 +45,25 @@ object LspProxy {
         closeProject(userId)
     }
 
-    /**
-     * Retrieve completions for a given line and character position in a project. By now
-     *
-     * - we assume that the project contains a single file
-     * - changes arrive before completion is triggered
-     *
-     * Changes are not incremental, whole file content is transmitted (which can make
-     * sense being kotlin playground files quite small in content).
-     */
     suspend fun getCompletionsSingleRoundTrip(project: Project, line: Int, ch: Int): List<CompletionItem> {
         val lspProject = lspProjects[project] ?: createNewProject(project)
         val projectFile = project.files.first()
         val uri = lspProject.getFileUri(projectFile.name) ?: return emptyList()
         client.openDocument(uri, projectFile.text)
-        val position = Position(line, ch)
-        return client.getCompletion(uri, position).await().also { client.closeDocument(uri) }
+        return getCompletions(project, line, ch, closeAfter = true)
+    }
+
+    suspend fun getCompletionsForUser(userId: String, newProject: Project, line: Int, ch: Int): List<CompletionItem> {
+        val project = usersProjects[userId] ?: return emptyList()
+        val lspProject = lspProjects[project] ?: return emptyList()
+        val newContent = newProject.files.first().text
+        val documentToChange = newProject.files.first().name
+        changeContent(lspProject, documentToChange, newContent)
+        return getCompletions(project, line, ch)
     }
 
     /**
-     * Retrieve completions for a given line and character position in a project. By now
+     * Retrieve completions for a given line and character position in a project file. By now
      *
      * - we assume that the project contains a single file
      * - changes arrive before completion is triggered
@@ -72,12 +71,17 @@ object LspProxy {
      * Changes are not incremental, whole file content is transmitted (which can make
      * sense being kotlin playground files quite small in content).
      */
-    suspend fun getCompletions(project: Project, line: Int, ch: Int): List<CompletionItem> {
+    suspend fun getCompletions(
+        project: Project,
+        line: Int,
+        ch: Int,
+        fileName: String = project.files.first().name,
+        closeAfter: Boolean = false
+    ): List<CompletionItem> {
         val lspProject = lspProjects[project] ?: return emptyList()
-        val projectFile = project.files.first()
-        val uri = lspProject.getFileUri(projectFile.name) ?: return emptyList()
-        val position = Position(line, ch)
-        return client.getCompletion(uri, position).await()
+        val uri = lspProject.getFileUri(fileName) ?: return emptyList()
+        return client.getCompletion(uri, Position(line, ch)).await()
+            .also { if (closeAfter) client.closeDocument(uri) }
     }
 
     private fun createNewProject(project: Project): LspProject {

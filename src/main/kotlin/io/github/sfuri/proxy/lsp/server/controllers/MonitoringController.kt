@@ -1,6 +1,5 @@
 package io.github.sfuri.proxy.lsp.server.controllers
 
-import io.github.sfuri.proxy.lsp.server.components.ws.CompletionWebSocketHandler
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping

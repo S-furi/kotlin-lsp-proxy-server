@@ -11,6 +11,9 @@ import io.github.sfuri.proxy.lsp.server.model.AdditionalCompletionData.*
 import org.eclipse.lsp4j.CompletionItem
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.nio.file.Path
+import kotlin.io.path.Path
+import kotlin.io.path.useLines
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class Completion(
@@ -136,4 +139,24 @@ object CompletionParser {
         importingStrategy.fqName == null || !importingStrategy.kind.contains("DoNothing")
 
     private val logger: Logger = LoggerFactory.getLogger(Completion::class.java)
+}
+
+
+object CompletionRequestValidator {
+    fun LspProject.shouldProvideCompletions(line: Int, ch: Int, fileName: String): Boolean =
+        getFileUri(fileName)?.let { uri ->
+            val filePath = Path(uri.replace("file:/", ""))
+            !isRequestedLineEmpty(filePath, line) && !isAfterMethodCall(filePath, line, ch)
+        } ?: false
+
+    private fun isRequestedLineEmpty(filePath: Path, line: Int): Boolean =
+        filePath.useLines { lines ->
+            lines.drop(line).first().isBlank()
+        }
+
+    private fun isAfterMethodCall(filePath: Path, line: Int, ch: Int): Boolean =
+        filePath.useLines { lines ->
+            val currentLine = lines.drop(line).first()
+            currentLine.take(ch - 1).last() == ')'
+        }
 }

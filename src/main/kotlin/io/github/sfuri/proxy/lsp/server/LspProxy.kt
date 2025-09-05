@@ -4,6 +4,7 @@ import io.github.sfuri.proxy.lsp.client.DocumentSync.changeDocument
 import io.github.sfuri.proxy.lsp.client.DocumentSync.closeDocument
 import io.github.sfuri.proxy.lsp.client.DocumentSync.openDocument
 import io.github.sfuri.proxy.lsp.client.KotlinLSPClient
+import io.github.sfuri.proxy.lsp.server.model.CompletionRequestValidator.shouldProvideCompletions
 import io.github.sfuri.proxy.lsp.server.model.LspProject
 import io.github.sfuri.proxy.lsp.server.model.Project
 import io.github.sfuri.proxy.lsp.server.model.ProjectFile
@@ -33,12 +34,15 @@ object LspProxy {
      * @param workspacePath the path to the workspace directory, namely the root of the common project
      * @param clientName the name of the client, defaults to "lsp-proxy"
      */
-    fun initializeClient(workspacePath: String = WORKSPACE_URI.path, clientName: String = "lsp-proxy") {
+    suspend fun initializeClient(workspacePath: String = WORKSPACE_URI.path, clientName: String = "lsp-proxy") {
         if (!::client.isInitialized) {
-            client = KotlinLSPClient(workspacePath, clientName)
+            client = KotlinLSPClient.create(workspacePath, clientName)
             logger.info("LSP client initialized with workspace=$workspacePath, name=$clientName")
         }
     }
+
+    @Synchronized
+    fun isConnectedToLsp() =::client.isInitialized
 
     /**
      * Retrieve completions for a given line and character position in a project file.
@@ -103,6 +107,10 @@ object LspProxy {
         closeAfter: Boolean = false
     ): List<CompletionItem> {
         val lspProject = lspProjects[project] ?: return emptyList()
+        if (!lspProject.shouldProvideCompletions(line, ch, fileName)) {
+            logger.info("Completions not provided for $fileName at line $line, ch $ch")
+            return emptyList()
+        }
         val uri = lspProject.getFileUri(fileName) ?: return emptyList()
         return client.getCompletion(uri, Position(line, ch)).await()
             .also { if (closeAfter) client.closeDocument(uri) }
@@ -113,10 +121,7 @@ object LspProxy {
         val lspProject = LspProject.fromProject(project)
         lspProjects[project] = lspProject
         usersProjects[userId] = project
-
-        lspProject.getFilesUris().forEach {
-                uri -> client.openDocument(uri, project.files.first().text)
-        }
+        lspProject.getFilesUris().forEach { client.openDocument(it, project.files.first().text) }
     }
 
     fun onUserDisconnected(userId: String) {
@@ -149,7 +154,6 @@ object LspProxy {
         return lspProject
     }
 
-    // TODO: investigate potential race conditions
     private fun changeContent(lspProject: LspProject, name: String, newContent: String) {
         lspProject.changeFileContents(name, newContent)
         client.changeDocument(lspProject.getFileUri(name)!!, newContent)

@@ -35,18 +35,17 @@ class CompletionWebSocketHandler : TextWebSocketHandler(), CoroutineScope {
 
     private val activeSessions = ConcurrentHashMap<String, WebSocketSession>()
 
-    val activeSessionCount: Int
+    internal val activeSessionCount: Int
         get() = activeSessions.size
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
-        val sessionId = session.id
-        activeSessions[sessionId] = session
+        activeSessions[session.id] = session
 
         launch {
-            logger.info("Client connected: $sessionId")
             with(session) {
-                LspProxy.onUserConnected(sessionId)
-                sendMessage(Response.init(sessionId))
+                logger.info("Client connected: $id")
+                LspProxy.onUserConnected(id)
+                sendMessage(Response.init(id))
             }
         }
     }

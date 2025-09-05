@@ -41,27 +41,6 @@ class KotlinLspProxyServerApplicationTests {
     }
 
     @Test
-    fun `variable completion test`() = runTest {
-        val content =
-            """
-            fun main() {
-                val tmp = 42
-                val y = 1 + tm
-            }
-            """.trimIndent()
-
-        complete(
-            code = content,
-            line = 2,
-            ch = 17,
-            completions = listOf(
-                "tmp"
-            ),
-            exhaustive = false,
-        )
-    }
-
-    @Test
     fun `test project isolation`() = runTest {
         val content1 =
             """

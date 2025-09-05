@@ -1,5 +1,6 @@
 package io.github.sfuri.proxy.lsp.client
 
+import kotlinx.coroutines.future.await
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageServer
@@ -83,12 +84,9 @@ class KotlinLSPClient {
     }
 
     companion object {
-        /**
-         * Blocking call to initialize the client and start listening for requests.
-         */
-        operator fun invoke(kotlinProjectRoot: String, projectName: String = "None"): KotlinLSPClient {
+        suspend fun create(kotlinProjectRoot: String, projectName: String = "None"): KotlinLSPClient {
             return KotlinLSPClient().apply {
-                initRequest(kotlinProjectRoot, projectName).get()
+                initRequest(kotlinProjectRoot, projectName).await()
             }
         }
     }

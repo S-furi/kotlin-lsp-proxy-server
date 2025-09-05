@@ -42,7 +42,7 @@ object LspProxy {
     }
 
     @Synchronized
-    fun isConnectedToLsp() =::client.isInitialized
+    fun isConnectedToLsp() = ::client.isInitialized
 
     /**
      * Retrieve completions for a given line and character position in a project file.

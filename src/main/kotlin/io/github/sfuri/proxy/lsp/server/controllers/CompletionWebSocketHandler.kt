@@ -12,8 +12,10 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.CloseStatus
@@ -22,6 +24,7 @@ import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 @Component
 class CompletionWebSocketHandler : TextWebSocketHandler(), CoroutineScope {
@@ -44,6 +47,11 @@ class CompletionWebSocketHandler : TextWebSocketHandler(), CoroutineScope {
         launch {
             with(session) {
                 logger.info("Client connected: $id")
+                withTimeoutOrNull(10.seconds) {
+                    while (!LspProxy.isConnectedToLsp()) {
+                        delay(500)
+                    }
+                } ?: sendMessage(Response.error("Proxy is not still connected to LSP server"))
                 LspProxy.onUserConnected(id)
                 sendMessage(Response.init(id))
             }

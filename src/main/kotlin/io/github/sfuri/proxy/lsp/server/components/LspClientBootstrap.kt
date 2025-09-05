@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 class LspClientBootstrap {
 
     @EventListener(ApplicationReadyEvent::class)
-    fun onRead() {
+    suspend fun onRead() {
         LspProxy.initializeClient()
     }
 

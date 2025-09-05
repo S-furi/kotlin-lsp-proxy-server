@@ -35,11 +35,15 @@ enum class Icon {
     GENERIC_VALUE;
 
     companion object {
-        fun tryParse(name: String?): Icon =
+        fun tryParse(name: String?): Icon? =
             try {
                 valueOf(name!!.uppercase())
             } catch (_: Exception) {
-                GENERIC_VALUE
+                when (name) {
+                    "Interface", "Enum", "Struct" -> CLASS
+                    "Function" -> METHOD
+                    else -> null
+                }
             }
     }
 }
@@ -70,8 +74,8 @@ object CompletionParser {
                 buildCompletionFromLookup(
                     label = label,
                     description = labelDetails?.description,
-                    iconKind = kind?.name?.lowercase(),
-                    lookup = lookup
+                    lookup = lookup,
+                    icon = kind?.let { Icon.tryParse(it.name) },
                 )
             }.getOrElse { e ->
                 logger.info("Cannot parse {}: {}", lookupJson, e.message)
@@ -89,18 +93,18 @@ object CompletionParser {
     }
 
     private fun AdditionalCompletionData.asDirectCompletionOrNull(): Completion? = when (this) {
-        is KeywordConstructLookupObject -> Completion(text = keyword, displayText = keyword, tail = constructToInsert)
-        is KeywordLookupObject -> keyword?.let { Completion(text = it, displayText = it, icon = Icon.GENERIC_VALUE) }
-        is NamedArgumentLookupObject -> Completion(text = shortName, displayText = shortName, icon = Icon.GENERIC_VALUE)
-        is PackagePartLookupObject -> Completion(text = shortName, displayText = shortName, icon = Icon.PACKAGE)
+        is KeywordConstructLookupObject -> Completion(text = constructToInsert , displayText = keyword)
+        is KeywordLookupObject -> keyword?.let { Completion(text = it, displayText = it) }
+        is NamedArgumentLookupObject -> Completion(text = shortName, displayText = shortName)
+        is PackagePartLookupObject -> Completion(text = shortName, displayText = shortName)
         else -> null
     }
 
     private fun buildCompletionFromLookup(
         label: String,
         description: String?,
-        iconKind: String?,
-        lookup: LookupObject
+        lookup: LookupObject,
+        icon: Icon?,
     ): Completion {
         val importName = with(lookup.options.importingStrategy) {
             if (needsImport(this)) fqName else null
@@ -108,13 +112,14 @@ object CompletionParser {
 
         val name = if (label != lookup.renderedDeclaration) "$label${lookup.renderedDeclaration}" else label
         val displayText = name + if (importName != null) "  ($importName)" else ""
+        val text = label + icon?.let { if (it == Icon.METHOD) "(" else ""}
 
         return Completion(
-            text = label,
+            text = text,
             displayText = displayText,
             tail = description,
             import = importName,
-            icon = Icon.tryParse(iconKind),
+            icon = icon,
         )
     }
 

@@ -115,7 +115,7 @@ object CompletionParser {
 
         val name = if (label != lookup.renderedDeclaration) "$label${lookup.renderedDeclaration}" else label
         val displayText = name + if (importName != null) "  ($importName)" else ""
-        val text = label + icon?.let { if (it == Icon.METHOD) "(" else ""}
+        val text = label + (icon.takeIf { it != null && it == Icon.METHOD }?.let { "(" } ?: "")
 
         return Completion(
             text = text,

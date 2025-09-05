@@ -6,10 +6,12 @@ import io.github.sfuri.proxy.lsp.server.model.ProjectFile
 import io.github.sfuri.proxy.lsp.server.model.ProjectType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import java.nio.file.Path
@@ -83,8 +85,8 @@ class KotlinLspProxyServerApplicationTests {
         val compl2 = async { LspProxy.getCompletionsSingleRoundTrip(project2, 1, 11).map { it.toCompletion()?.text } }
 
         listOf(compl1, compl2).awaitAll().let { (c1, c2) ->
-            assertTrue(c2.contains("toInterval"))
-            assertFalse(c1.contains("toInterval"))
+            assertTrue(c2.contains("toInterval("))
+            assertFalse(c1.contains("toInterval("))
         }
     }
 
@@ -95,16 +97,23 @@ class KotlinLspProxyServerApplicationTests {
             val root = Path.of("usersFiles")
             root.toFile().listFiles()?.forEach { it.deleteRecursively() }
         }
+
+        @BeforeAll
+        @JvmStatic
+        fun setup() = runBlocking {
+            val root = Path.of("usersFiles")
+            LspProxy.initializeClient()
+        }
     }
 }
 
 private suspend fun complete(code: String, line: Int, ch: Int, completions: List<String>, exhaustive: Boolean = true) {
     val project = Project(files = listOf(ProjectFile(code, "source1.kt")), confType = ProjectType.JAVA)
-    val res = LspProxy.getCompletions(
+    val res = LspProxy.getCompletionsSingleRoundTrip(
         project,
         line,
         ch,
-    ).mapNotNull { it.toCompletion()?.text }
+    ).mapNotNull { it.toCompletion()?.text?.replace("(", "") }
 
     assertFalse(res.isEmpty())
     if (exhaustive) assertEquals(completions, res)

@@ -107,10 +107,7 @@ object LspProxy {
         closeAfter: Boolean = false
     ): List<CompletionItem> {
         val lspProject = lspProjects[project] ?: return emptyList()
-        if (!lspProject.shouldProvideCompletions(line, ch, fileName)) {
-            logger.info("Completions not provided for $fileName at line $line, ch $ch")
-            return emptyList()
-        }
+        if (!lspProject.shouldProvideCompletions(line, ch, fileName)) return emptyList()
         val uri = lspProject.getFileUri(fileName) ?: return emptyList()
         return client.getCompletion(uri, Position(line, ch)).await()
             .also { if (closeAfter) client.closeDocument(uri) }

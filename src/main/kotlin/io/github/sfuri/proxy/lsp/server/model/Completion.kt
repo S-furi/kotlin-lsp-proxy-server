@@ -157,6 +157,6 @@ object CompletionRequestValidator {
     private fun isAfterMethodCall(filePath: Path, line: Int, ch: Int): Boolean =
         filePath.useLines { lines ->
             val currentLine = lines.drop(line).first()
-            currentLine.take(ch - 1).last() == ')'
+            currentLine.take(if (ch - 1 > 0) ch - 1 else 0).last() == ')'
         }
 }

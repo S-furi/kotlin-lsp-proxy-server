@@ -1,0 +1,7 @@
+services:
+  kotlin-lsp:
+    build: .
+    ports:
+      - "9990:9990"
+    container_name: kotlin-lsp-server
+    restart: unless-stopped
